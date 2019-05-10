@@ -1,0 +1,10 @@
+[package]
+name = "texture_atlas"
+version = "0.1.0"
+authors = ["Tyler Reisinger <reisinger.tyler@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+image = "^0.21"
+serde = "^1.0.91"
+clap = "2.33"
