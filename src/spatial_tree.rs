@@ -19,6 +19,7 @@ pub struct Size {
 pub struct SpatialNode<T> {
     pub region: Region,
     pub value: Option<T>,
+    pub value_size: (u32, u32),
     pub right: Option<Box<SpatialNode<T>>>,
     pub bottom: Option<Box<SpatialNode<T>>>,
     pub parent: Option<*mut SpatialNode<T>>,
@@ -75,7 +76,7 @@ impl Region {
     pub fn area(&self) -> u32 {
         self.width * self.height
     }
-    
+
     pub fn max_size(&self) -> u32 {
         self.width.max(self.height)
     }
@@ -88,7 +89,8 @@ impl<T> SpatialNode<T> {
             value: None,
             right: None,
             bottom: None,
-            parent: None
+            parent: None,
+            value_size: (0, 0),
         }
     }
 }
@@ -111,6 +113,15 @@ impl<T> SpatialTree<T> {
         SpatialTree {
             num_items: 0,
             region: Region::default(),
+            root: None,
+            free_regions: HashSet::new(),
+        }
+    }
+
+    pub fn with_initial_size(width: u32, height: u32) -> SpatialTree<T> {
+        SpatialTree {
+            num_items: 0,
+            region: Region::new(0, 0, width, height),
             root: None,
             free_regions: HashSet::new(),
         }
@@ -141,21 +152,26 @@ impl<T> SpatialTree<T> {
             if let Some(node) = target_node {
                 self.split_node(node, &region);
                 node.value = Some(item);
+                node.value_size = (width, height);
             } else {
                 let node = unsafe{&mut *std::mem::transmute::<_, *mut SpatialNode<T>>(self.resize(&region))};
                 self.split_node(node, &region);
                 node.value = Some(item);
+                node.value_size = (width, height);
             }
         } else {
-            self.region = region.clone();
+            if self.region.width == 0 {
+                self.region = region.clone();
+            }
             let mut new_root = Box::new(SpatialNode {
-                region: region.clone(),
+                region: self.region.clone(),
                 value: Some(item),
                 right: None,
                 bottom: None,
                 parent: None,
+                value_size: (width, height),
             });
-            //self.split_node(new_root.as_mut(), &region);
+            self.split_node(new_root.as_mut(), &region.clone());
             self.root = Some(new_root);
         }
         self.num_items += 1;
@@ -196,19 +212,17 @@ impl<T> SpatialTree<T> {
         if new_width < new_height {
             if new_region.height > self.region.height {
                 //TODO
-                panic!("Height overflow")
+                //panic!("Height overflow")
+                self.resize_down(self.region.width, new_region.height);
             }
-            else {
-                self.resize_right(new_width, self.region.height)
-            }
+            self.resize_right(new_width, self.region.height)
         } else {
-            if new_region.width > self.region.height {
+            if new_region.width > self.region.width {
                 //TODO
-                panic!("Width overflow")
+                //panic!("Width overflow")
+                self.resize_right(new_region.width, self.region.height);
             }
-            else {
-                self.resize_down(self.region.width, new_height)
-            }
+            self.resize_down(self.region.width, new_height)
         }
     }
 
@@ -232,6 +246,7 @@ impl<T> SpatialTree<T> {
             bottom: self.root.take(),
             right: Some(Box::new(right_node)),
             parent: None,
+            value_size: (new_width, height),
         });
         new_root.bottom.as_mut().unwrap().parent = Some(new_root.as_mut());
         new_root.right.as_mut().unwrap().parent = Some(new_root.as_mut());
@@ -262,6 +277,7 @@ impl<T> SpatialTree<T> {
             bottom: Some(Box::new(bottom_node)),
             right: self.root.take(),
             parent: None,
+            value_size: (width, new_height),
         });
         new_root.bottom.as_mut().unwrap().parent = Some(new_root.as_mut());
         new_root.right.as_mut().unwrap().parent = Some(new_root.as_mut());

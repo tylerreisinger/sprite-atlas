@@ -8,3 +8,7 @@ edition = "2018"
 image = "^0.21"
 serde = "^1.0.91"
 clap = "2.33"
+rand = "0.6.5"
+
+[profile.release]
+debug = true

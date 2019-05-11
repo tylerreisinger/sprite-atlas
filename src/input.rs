@@ -6,16 +6,15 @@ use crate::options::InputOptions;
 fn iterate_dir<F>(config: &InputOptions, path: &path::Path, callback: &mut F)
     where F: FnMut(&path::Path)
 {
-    for dir in &config.directories {
-        for entry in fs::read_dir(dir)
-            .expect(&format!("{} is not a valid directory", path.display()))
-        {
-            let entry = entry.unwrap();
-            if entry.path().is_dir() {
-                iterate_dir(config, &entry.path(), callback)
-            } else {
-                callback(&entry.path())
-            }
+    for entry in fs::read_dir(path)
+        .expect(&format!("{} is not a valid directory", path.display()))
+    {
+        let entry = entry.unwrap();
+        if entry.path().is_dir() {
+            println!("{}", entry.path().display());
+            iterate_dir(config, &entry.path(), callback)
+        } else {
+            callback(&entry.path());
         }
     }
 }
@@ -30,6 +29,6 @@ pub fn get_input_files(config: &InputOptions) -> Vec<path::PathBuf> {
     paths
 }
 
-pub fn load_image(path: &path::Path) -> image::DynamicImage {
-    image::open(path).expect(&format!("Unable to load {}", path.display()))
+pub fn load_image(path: &path::Path) -> Option<image::DynamicImage> {
+    image::open(path).ok()
 }
